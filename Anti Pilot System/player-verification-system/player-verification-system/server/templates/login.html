@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login — Tournament Verification System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-void:    #090b10;
+            --bg-panel:   #0d1117;
+            --bg-card:    #111620;
+            --bg-input:   #0a0e16;
+            --border:     #1e2a3a;
+            --border-glow:#1e3a5f;
+            --accent:     #00d4ff;
+            --accent2:    #7b2fff;
+            --accent-dim: rgba(0,212,255,0.08);
+            --green:      #00ff88;
+            --red:        #ff3355;
+            --text:       #e8edf5;
+            --text-dim:   #6b7a8d;
+            --text-muted: #3a4555;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-void);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* animated grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridPan 30s linear infinite;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(123,47,255,0.08) 0%, transparent 70%);
+            z-index: 0;
+        }
+
+        @keyframes gridPan {
+            0%   { transform: translate(0,0); }
+            100% { transform: translate(60px, 60px); }
+        }
+
+        /* corner decorations */
+        .corner { position: fixed; width: 120px; height: 120px; z-index: 1; }
+        .corner-tl { top: 0; left: 0; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); opacity: 0.3; }
+        .corner-tr { top: 0; right: 0; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); opacity: 0.3; }
+        .corner-bl { bottom: 0; left: 0; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); opacity: 0.3; }
+        .corner-br { bottom: 0; right: 0; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); opacity: 0.3; }
+
+        .login-wrap {
+            position: relative;
+            z-index: 2;
+            width: 460px;
+            animation: fadeUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* logo area */
+        .logo-area {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-slot {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 16px;
+            border: 2px dashed var(--border-glow);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-dim);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-slot::after {
+            content: 'INSERT LOGO';
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+        }
+
+        .logo-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none; /* show once src is set */
+        }
+
+        .system-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .system-sub {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+
+        /* card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 40px;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        }
+
+        /* scan line */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: var(--accent);
+            opacity: 0.4;
+            animation: scan 4s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+            0%   { top: 0; opacity: 0.4; }
+            50%  { opacity: 0.1; }
+            100% { top: 100%; opacity: 0.4; }
+        }
+
+        .card-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title::before {
+            content: '';
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--border-glow);
+            color: var(--text);
+            font-family: 'Exo 2', sans-serif;
+            font-size: 15px;
+            padding: 13px 16px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            border-radius: 2px;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            border-left-color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(0,212,255,0.15), inset 0 0 20px rgba(0,212,255,0.03);
+        }
+
+        input::placeholder { color: var(--text-muted); }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            margin-top: 8px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: color 0.3s;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent);
+            transform: translateX(-101%);
+            transition: transform 0.3s ease;
+            z-index: 0;
+        }
+
+        .btn-login:hover::before { transform: translateX(0); }
+        .btn-login:hover { color: var(--bg-void); }
+        .btn-login span { position: relative; z-index: 1; }
+
+        .error-box {
+            background: rgba(255,51,85,0.08);
+            border: 1px solid rgba(255,51,85,0.3);
+            border-left: 3px solid var(--red);
+            color: var(--red);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .status-dot {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(0,255,136,0); }
+        }
+
+        .version {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="login-wrap">
+        <div class="logo-area">
+            <div class="logo-slot">
+                <!-- Replace with: <img src="your-logo.png" alt="Logo"> -->
+            </div>
+            <div class="system-name">Verification System</div>
+            <div class="system-sub">Tournament Anti-Cheat Platform</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Admin Access</div>
+
+            <div id="error-box" class="error-box"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" autocomplete="off" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="••••••••••" required>
+                </div>
+                <button type="submit" class="btn-login"><span>Authenticate</span></button>
+            </form>
+
+            <div class="status-bar">
+                <div class="status-dot"><span class="dot"></span> SYSTEM ONLINE</div>
+                <div class="version">v1.0.0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorBox = document.getElementById('error-box');
+            errorBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorBox.textContent = '⚠  ' + (data.message || 'Invalid credentials');
+                    errorBox.style.display = 'block';
+                }
+            } catch (err) {
+                errorBox.textContent = '⚠  Connection error. Check server status.';
+                errorBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

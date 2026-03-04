@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Center — Tournament Verification</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-void:    #060810;
+            --bg-panel:   #0b0f1a;
+            --bg-card:    #0f1520;
+            --bg-row:     #121824;
+            --bg-row-alt: #0f1420;
+            --border:     #1a2436;
+            --accent:     #00d4ff;
+            --accent2:    #7b2fff;
+            --accent-dim: rgba(0,212,255,0.06);
+            --green:      #00e676;
+            --green-dim:  rgba(0,230,118,0.08);
+            --red:        #ff3355;
+            --red-dim:    rgba(255,51,85,0.08);
+            --orange:     #ff9500;
+            --text:       #dde4f0;
+            --text-dim:   #5a6a80;
+            --text-mid:   #8a9ab0;
+            --sidebar-w:  240px;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-void);
+            color: var(--text);
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: var(--sidebar-w) 1fr;
+            grid-template-rows: 56px 1fr;
+        }
+
+        /* ── TOPBAR ─────────────────────────────────────────────── */
+        .topbar {
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 16px;
+            position: relative;
+            z-index: 100;
+        }
+
+        .topbar::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.4;
+        }
+
+        .logo-slot {
+            width: 36px;
+            height: 36px;
+            border: 1px dashed rgba(0,212,255,0.3);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: var(--accent-dim);
+            font-size: 8px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            font-family: 'Barlow Condensed', sans-serif;
+            overflow: hidden;
+        }
+
+        .logo-slot img { width: 100%; height: 100%; object-fit: contain; }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+
+        .brand-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .brand-sub {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .topbar-spacer { flex: 1; }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,230,118,0.08);
+            border: 1px solid rgba(0,230,118,0.2);
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--green);
+            text-transform: uppercase;
+        }
+
+        .live-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: livePulse 1.5s infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 2px;
+        }
+
+        .user-avatar {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: #000;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .user-info-text { line-height: 1.2; }
+
+        .user-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px; font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--text);
+        }
+
+        .user-role {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 7px 14px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── SIDEBAR ─────────────────────────────────────────────── */
+        .sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .nav-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            transition: background 0.15s, color 0.15s;
+            border-left: 2px solid transparent;
+            margin-bottom: 2px;
+        }
+
+        .nav-item:hover { background: var(--accent-dim); color: var(--text); }
+        .nav-item.active { background: var(--accent-dim); color: var(--accent); border-left-color: var(--accent); }
+
+        .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+        /* ── MAIN ────────────────────────────────────────────────── */
+        .main {
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--bg-void);
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .page-title span { color: var(--accent); }
+
+        .page-meta {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+        }
+
+        /* ── STAT CARDS ──────────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+
+        .stat-card.total::before  { background: linear-gradient(90deg, var(--accent), transparent); }
+        .stat-card.success::before { background: linear-gradient(90deg, var(--green), transparent); }
+        .stat-card.failed::before  { background: linear-gradient(90deg, var(--red), transparent); }
+        .stat-card.active::before  { background: linear-gradient(90deg, var(--orange), transparent); }
+
+        .stat-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-card.total  .stat-value { color: var(--accent); }
+        .stat-card.success .stat-value { color: var(--green); }
+        .stat-card.failed  .stat-value { color: var(--red); }
+        .stat-card.active  .stat-value { color: var(--orange); }
+
+        .stat-footer {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        /* ── PANELS ──────────────────────────────────────────────── */
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .panel-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title::before {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 16px;
+            background: var(--accent);
+        }
+
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ── TABLE ───────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            text-align: left;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(26,36,54,0.6);
+            transition: background 0.15s;
+        }
+
+        tbody tr:nth-child(even) { background: rgba(255,255,255,0.01); }
+        tbody tr:hover { background: var(--accent-dim); }
+
+        td {
+            padding: 14px 20px;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+
+        .player-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--text);
+        }
+
+        .player-id {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 2px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .badge-verified { background: var(--green-dim); border: 1px solid rgba(0,230,118,0.25); color: var(--green); }
+        .badge-failed   { background: var(--red-dim);   border: 1px solid rgba(255,51,85,0.25);  color: var(--red); }
+
+        .conf-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+        .conf-bar {
+            width: 80px; height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .conf-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--green));
+            border-radius: 2px;
+        }
+
+        .conf-text {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            color: var(--text-mid);
+            min-width: 40px;
+        }
+
+        .device-ok  { color: var(--green); font-size: 16px; }
+        .device-bad { color: var(--red);   font-size: 16px; }
+
+        .ts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .view-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .view-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .no-data {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-dim);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        /* ── TOAST ───────────────────────────────────────────────── */
+        .toast-wrap {
+            position: fixed;
+            top: 72px; right: 20px;
+            display: flex; flex-direction: column; gap: 8px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--red);
+            padding: 12px 16px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--text);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 4.7s forwards;
+            min-width: 280px;
+        }
+
+        @keyframes toastIn  { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+        <div class="logo-slot">
+            <!-- <img src="your-logo.png" alt="Logo"> -->
+            LOGO
+        </div>
+        <div class="brand">
+            <div class="brand-name">Verification System</div>
+            <div class="brand-sub">Tournament Command Center</div>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="live-badge"><span class="live-dot"></span> Live</div>
+        <div class="user-chip">
+            <div class="user-avatar">{{ username[0]|upper if username else 'A' }}</div>
+            <div class="user-info-text">
+                <div class="user-name">{{ username }}</div>
+                <div class="user-role">{{ role }}</div>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="location.href='/admin/logout'">Logout</button>
+    </header>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="nav-section">
+            <div class="nav-label">Monitor</div>
+            <div class="nav-item active" onclick="showSection('logs')">
+                <span class="nav-icon">▤</span> Verification Logs
+            </div>
+            <div class="nav-item" onclick="showSection('players')">
+                <span class="nav-icon">◈</span> Registered Players
+            </div>
+        </div>
+        <div class="nav-section">
+            <div class="nav-label">System</div>
+            <div class="nav-item">
+                <span class="nav-icon">◎</span> Active Sessions
+                <span id="active-badge" style="margin-left:auto;background:rgba(255,149,0,0.15);border:1px solid rgba(255,149,0,0.3);color:#ff9500;font-family:'Barlow Condensed';font-size:11px;padding:1px 7px;border-radius:2px;">0</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+        <div class="page-header">
+            <div>
+                <div class="page-title">Command <span>Center</span></div>
+                <div class="page-meta" id="clock"></div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-label">Total Checks Today</div>
+                <div class="stat-value" id="total-v">0</div>
+                <div class="stat-footer">All verification attempts</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">Verified</div>
+                <div class="stat-value" id="verified-c">0</div>
+                <div class="stat-footer">Successful matches</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" id="failed-c">0</div>
+                <div class="stat-footer">Flagged incidents</div>
+            </div>
+            <div class="stat-card active">
+                <div class="stat-label">Active Players</div>
+                <div class="stat-value" id="active-p">0</div>
+                <div class="stat-footer">Currently online</div>
+            </div>
+        </div>
+
+        <!-- VERIFICATION LOGS -->
+        <div class="panel" id="section-logs">
+            <div class="panel-header">
+                <div class="panel-title">Recent Verification Logs</div>
+                <button class="refresh-btn" onclick="loadLogs()">↺ Refresh</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Status</th>
+                        <th>Confidence</th>
+                        <th>Device</th>
+                        <th>Timestamp</th>
+                        <th>Image</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-body">
+                    <tr><td colspan="6" class="no-data">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PLAYERS -->
+        <div class="panel" id="section-players" style="display:none;">
+            <div class="panel-header">
+                <div class="panel-title">Registered Players</div>
+                <button class="refresh-btn" onclick="loadPlayers()">↺ Refresh</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player ID</th>
+                        <th>Name</th>
+                        <th>Student ID</th>
+                        <th>Registered</th>
+                        <th>Logs</th>
+                    </tr>
+                </thead>
+                <tbody id="players-body">
+                    <tr><td colspan="5" class="no-data">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="toast-wrap" id="toast-wrap"></div>
+
+    <script>
+        const socket = io();
+
+        socket.on('connect', () => console.log('WS connected'));
+
+        socket.on('verification_update', (data) => {
+            updateStats();
+            loadLogs();
+            if (data.status === 'FAILED') showToast(`⚠ FAILED: ${data.player_name} — possible piloting detected`);
+        });
+
+        window.addEventListener('load', () => {
+            loadLogs();
+            loadPlayers();
+            updateStats();
+            updateClock();
+            setInterval(updateStats, 30000);
+            setInterval(updateClock, 1000);
+        });
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent =
+                now.toLocaleDateString('en-US', { weekday:'short', year:'numeric', month:'short', day:'numeric' })
+                + '  ·  '
+                + now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function showSection(name) {
+            document.getElementById('section-logs').style.display    = name === 'logs'    ? 'block' : 'none';
+            document.getElementById('section-players').style.display = name === 'players' ? 'block' : 'none';
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            if (name === 'players') loadPlayers();
+        }
+
+        async function loadLogs() {
+            try {
+                const res  = await fetch('/api/logs/recent?limit=50');
+                const logs = await res.json();
+                const body = document.getElementById('logs-body');
+                if (!logs.length) { body.innerHTML = '<tr><td colspan="6" class="no-data">No verification logs yet</td></tr>'; return; }
+                body.innerHTML = logs.map(l => `
+                    <tr>
+                        <td>
+                            <div class="player-name">${l.player_name || 'Unknown'}</div>
+                            <div class="player-id">${l.player_id}</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-${l.verification_status === 'VERIFIED' ? 'verified' : 'failed'}">
+                                ${l.verification_status === 'VERIFIED' ? '✓' : '✗'} ${l.verification_status}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="conf-bar-wrap">
+                                <div class="conf-bar"><div class="conf-fill" style="width:${(l.confidence_score*100).toFixed(0)}%"></div></div>
+                                <span class="conf-text">${(l.confidence_score*100).toFixed(1)}%</span>
+                            </div>
+                        </td>
+                        <td><span class="${l.device_matched ? 'device-ok' : 'device-bad'}">${l.device_matched ? '◉' : '◎'}</span></td>
+                        <td class="ts">${new Date(l.timestamp).toLocaleString()}</td>
+                        <td><button class="view-btn" onclick="alert('Image: ${l.image_path}')">View</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadPlayers() {
+            try {
+                const res = await fetch('/api/players');
+                const players = await res.json();
+                const body = document.getElementById('players-body');
+                if (!players.length) { body.innerHTML = '<tr><td colspan="5" class="no-data">No players registered yet</td></tr>'; return; }
+                body.innerHTML = players.map(p => `
+                    <tr>
+                        <td class="player-id" style="font-size:13px;">${p.player_id}</td>
+                        <td class="player-name">${p.name}</td>
+                        <td class="ts">${p.student_id || '—'}</td>
+                        <td class="ts">${new Date(p.registered_at).toLocaleString()}</td>
+                        <td><button class="view-btn" onclick="alert('Logs for: ${p.player_id}')">View Logs</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function updateStats() {
+            try {
+                const res  = await fetch('/api/logs/recent?limit=1000');
+                const logs = await res.json();
+                const today = new Date().toDateString();
+                const todayLogs = logs.filter(l => new Date(l.timestamp).toDateString() === today);
+                const verified  = todayLogs.filter(l => l.verification_status === 'VERIFIED').length;
+                const failed    = todayLogs.filter(l => l.verification_status !== 'VERIFIED').length;
+                const fiveMinAgo = Date.now() - 300000;
+                const active = new Set(logs.filter(l => new Date(l.timestamp).getTime() > fiveMinAgo).map(l => l.player_id)).size;
+                document.getElementById('total-v').textContent   = todayLogs.length;
+                document.getElementById('verified-c').textContent = verified;
+                document.getElementById('failed-c').textContent   = failed;
+                document.getElementById('active-p').textContent   = active;
+                document.getElementById('active-badge').textContent = active;
+            } catch(e) { console.error(e); }
+        }
+
+        function showToast(msg) {
+            const wrap = document.getElementById('toast-wrap');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            wrap.appendChild(t);
+            setTimeout(() => t.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
