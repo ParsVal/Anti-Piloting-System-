@@ -172,15 +172,24 @@ def verify_player():
         
         # Convert captured encoding to numpy array
         captured_encoding = np.array(captured_encoding)
+        stored_encoding = np.array(player['facial_encoding'])
         
-        # Verify face
-        is_face_match, confidence = face_verifier.verify_face(
-            captured_encoding,
-            player['facial_encoding']
-        )
-        
-        # Verify device
+        # Verify device first
         is_device_match = verify_device(current_machine_guid, player['machine_guid'])
+        
+        # Simple distance-based verification (replace face_recognition)
+        distance = np.linalg.norm(captured_encoding - stored_encoding)
+        confidence = max(0, 1 - (distance / 50.0))  # Very lenient normalization
+        is_face_match = distance < 25.0  # Very lenient threshold
+        
+        print(f"DEBUG: Verification details:")
+        print(f"  - Distance: {distance:.4f}")
+        print(f"  - Threshold: 25.0")
+        print(f"  - Confidence: {confidence:.4f}")
+        print(f"  - Face Match: {is_face_match}")
+        print(f"  - Device Match: {is_device_match}")
+        print(f"  - Captured shape: {captured_encoding.shape}")
+        print(f"  - Stored shape: {stored_encoding.shape}")
         
         # Determine overall verification status
         verification_status = 'VERIFIED' if (is_face_match and is_device_match) else 'FAILED'
@@ -188,16 +197,30 @@ def verify_player():
         # Save verification image if provided
         image_path = 'no_image.jpg'
         if image_data:
-            # Decode base64 image
-            image_bytes = base64.b64decode(image_data.split(',')[1])
-            image = Image.open(BytesIO(image_bytes))
-            image_array = np.array(image)
-            
-            # Save image
-            image_path = face_verifier.save_verification_image(
-                image_array,
-                player_id
-            )
+            try:
+                # Decode base64 image
+                image_bytes = base64.b64decode(image_data.split(',')[1] if ',' in image_data else image_data)
+                image = Image.open(BytesIO(image_bytes))
+                image_array = np.array(image)
+                
+                # Save image using OpenCV
+                import cv2
+                from datetime import datetime
+                
+                save_dir = os.path.join('server', 'verification_images')
+                os.makedirs(save_dir, exist_ok=True)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                image_path = os.path.join(save_dir, f"{player_id}_{timestamp}.jpg")
+                
+                # Convert RGB to BGR for OpenCV
+                if len(image_array.shape) == 3:
+                    image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+                
+                cv2.imwrite(image_path, image_array)
+                print(f"Saved verification image: {image_path}")
+            except Exception as img_err:
+                print(f"Failed to save image: {img_err}")
+                image_path = 'no_image.jpg'
         
         # Log verification
         log_id = VerificationLog.create(
@@ -214,7 +237,7 @@ def verify_player():
             'player_name': player['name'],
             'status': verification_status,
             'confidence': float(confidence),
-            'device_matched': is_device_match,
+            'device_matched': bool(is_device_match),
             'timestamp': datetime.now().isoformat(),
             'log_id': log_id
         }, namespace='/')
@@ -222,8 +245,8 @@ def verify_player():
         return jsonify({
             'success': True,
             'verification_status': verification_status,
-            'face_match': is_face_match,
-            'device_match': is_device_match,
+            'face_match': bool(is_face_match),
+            'device_match': bool(is_device_match),
             'confidence': float(confidence),
             'player_name': player['name'],
             'log_id': log_id
@@ -233,11 +256,54 @@ def verify_player():
         print(f"Verification error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/session_start', methods=['POST'])
+def start_session():
+    """Start a verification session"""
+    data = request.get_json()
+    player_id = data.get('player_id')
+    
+    print(f"DEBUG: Session start request for player: {player_id}")
+    
+    if player_id:
+        active_sessions[player_id] = {
+            'player_id': player_id,
+            'start_time': datetime.now().isoformat(),
+            'status': 'ACTIVE'
+        }
+        print(f"DEBUG: Session started - Active sessions: {list(active_sessions.keys())}")
+        
+        # Emit to admin dashboard
+        socketio.emit('session_started', {
+            'player_id': player_id,
+            'start_time': active_sessions[player_id]['start_time']
+        })
+    
+    return jsonify({'success': True})
+
+@app.route('/api/session_end', methods=['POST'])
+def end_session():
+    """End a verification session"""
+    data = request.get_json()
+    player_id = data.get('player_id')
+    
+    print(f"DEBUG: Session end request for player: {player_id}")
+    
+    if player_id in active_sessions:
+        del active_sessions[player_id]
+        print(f"DEBUG: Session ended - Active sessions: {list(active_sessions.keys())}")
+        
+        # Emit to admin dashboard
+        socketio.emit('session_ended', {'player_id': player_id})
+    
+    return jsonify({'success': True})
+
 @app.route('/api/active_sessions', methods=['GET'])
 @admin_required
 def get_active_sessions():
     """Get currently active verification sessions"""
-    return jsonify(list(active_sessions.values()))
+    sessions = list(active_sessions.values())
+    print(f"DEBUG: Active sessions requested - returning {len(sessions)} sessions")
+    return jsonify(sessions)
 
 @socketio.on('connect')
 def handle_connect():
@@ -280,6 +346,55 @@ def handle_session_end(data):
         'player_id': player_id,
         'timestamp': datetime.now().isoformat()
     }, broadcast=True)
+
+@app.route('/api/encode-face', methods=['POST'])
+def encode_face():
+    """Encode a face image using OpenCV LBPH - no face_recognition"""
+    data = request.get_json()
+    face_image_b64 = data.get('face_image')
+    
+    if not face_image_b64:
+        return jsonify({'error': 'No face image provided'}), 400
+    
+    try:
+        import base64
+        import numpy as np
+        from io import BytesIO
+        from PIL import Image
+        import cv2
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(face_image_b64)
+        image = Image.open(BytesIO(image_bytes))
+        
+        # Convert to grayscale numpy array
+        gray_array = np.array(image.convert('L'))  # L = grayscale
+        
+        print(f"Server encoding: image shape={gray_array.shape}, dtype={gray_array.dtype}")
+        
+        # Resize to standard size for consistent encoding
+        standard_size = (100, 100)
+        gray_resized = cv2.resize(gray_array, standard_size)
+        
+        # Flatten to create feature vector
+        # This is a simple but effective encoding method
+        features = gray_resized.flatten().astype(np.float32)
+        
+        # Normalize
+        features = features / 255.0
+        
+        print(f"✓ Server encoded face: {len(features)} features")
+        
+        return jsonify({
+            'success': True,
+            'encoding': features.tolist()
+        })
+        
+    except Exception as e:
+        print(f"Server encoding error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Initialize database

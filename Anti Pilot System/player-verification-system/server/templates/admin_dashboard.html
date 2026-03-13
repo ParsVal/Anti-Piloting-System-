@@ -13,8 +13,6 @@
             --bg-void:    #060810;
             --bg-panel:   #0b0f1a;
             --bg-card:    #0f1520;
-            --bg-row:     #121824;
-            --bg-row-alt: #0f1420;
             --border:     #1a2436;
             --accent:     #00d4ff;
             --accent2:    #7b2fff;
@@ -520,7 +518,7 @@
     <!-- TOPBAR -->
     <header class="topbar">
         <div class="logo-slot">
-            <!-- <img src="your-logo.png" alt="Logo"> -->
+            <!-- <img src="/static/logo.png" alt="Logo"> -->
             LOGO
         </div>
         <div class="brand">
@@ -547,19 +545,12 @@
                 <span class="nav-icon">▤</span> Verification Logs
             </div>
             <div class="nav-item" onclick="showSection('players')">
-                <span class="nav-icon">◈</span> Registered Players
-            </div>
-        </div>
-        <div class="nav-section">
-            <div class="nav-label">System</div>
-            <div class="nav-item">
-                <span class="nav-icon">◎</span> Active Sessions
-                <span id="active-badge" style="margin-left:auto;background:rgba(255,149,0,0.15);border:1px solid rgba(255,149,0,0.3);color:#ff9500;font-family:'Barlow Condensed';font-size:11px;padding:1px 7px;border-radius:2px;">0</span>
+                <span class="nav-icon">◉</span> Registered Players
             </div>
         </div>
     </aside>
 
-    <!-- MAIN -->
+    <!-- MAIN CONTENT -->
     <main class="main">
         <div class="page-header">
             <div>
@@ -610,12 +601,12 @@
                     </tr>
                 </thead>
                 <tbody id="logs-body">
-                    <tr><td colspan="6" class="no-data">Loading data...</td></tr>
+                    <tr><td colspan="6" class="no-data">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- PLAYERS -->
+        <!-- REGISTERED PLAYERS -->
         <div class="panel" id="section-players" style="display:none;">
             <div class="panel-header">
                 <div class="panel-title">Registered Players</div>
@@ -628,27 +619,33 @@
                         <th>Name</th>
                         <th>Student ID</th>
                         <th>Registered</th>
-                        <th>Logs</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="players-body">
-                    <tr><td colspan="5" class="no-data">Loading data...</td></tr>
+                    <tr><td colspan="5" class="no-data">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
     </main>
 
+    <!-- TOAST CONTAINER -->
     <div class="toast-wrap" id="toast-wrap"></div>
 
     <script>
         const socket = io();
 
-        socket.on('connect', () => console.log('WS connected'));
-
-        socket.on('verification_update', (data) => {
-            updateStats();
+        socket.on('verification_result', (data) => {
             loadLogs();
-            if (data.status === 'FAILED') showToast(`⚠ FAILED: ${data.player_name} — possible piloting detected`);
+            updateStats();
+            if (data.verification_status !== 'VERIFIED') {
+                showToast(`🚨 FAILED: ${data.player_id} - ${(data.confidence_score*100).toFixed(1)}% confidence`);
+            }
+        });
+
+        socket.on('session_ended', (data) => {
+            loadLogs();
+            showToast(`🔴 Session ended: ${data.player_id}`);
         });
 
         window.addEventListener('load', () => {
@@ -739,7 +736,6 @@
                 document.getElementById('verified-c').textContent = verified;
                 document.getElementById('failed-c').textContent   = failed;
                 document.getElementById('active-p').textContent   = active;
-                document.getElementById('active-badge').textContent = active;
             } catch(e) { console.error(e); }
         }
 

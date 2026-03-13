@@ -98,8 +98,6 @@ class VerificationClient:
         )
         title.pack(side='left', pady=20)
         
-        # Live badge - removed, tkinter doesn't support rgba
-        
         # Main content
         main_frame = tk.Frame(self.root, bg='#0b0f1a')
         main_frame.pack(fill='both', expand=True, padx=20, pady=20)
@@ -299,14 +297,50 @@ class VerificationClient:
             self.root.destroy()
     
     def start_verification(self):
+        """Start verification process"""
+        if not self.player_id:
+            messagebox.showerror("Error", "No Player ID set")
+            return
+        
+        self.is_running = True
+        self.start_btn.config(state='disabled', bg='#0a0e16', fg='#3a4555', cursor='arrow')
+        self.stop_btn.config(state='normal', bg='#ff3355', fg='#ffffff', cursor='hand2')
+        
+        # Start camera
+        self.cap = cv2.VideoCapture(0)
+        
+        # Notify server of session start
+        try:
+            print(f"DEBUG: Sending session start for player: {self.player_id}")
+            response = requests.post(f"{self.server_url}/api/session_start", 
+                               json={'player_id': self.player_id}, 
+                               timeout=5)
+            print(f"DEBUG: Session start response: {response.status_code}")
+        except Exception as e:
+            print(f"DEBUG: Session start failed: {e}")
+        
+        # Start video display
+        self.update_video()
+        
+        # Start verification thread
+        self.verification_thread = threading.Thread(target=self.verification_loop, daemon=True)
+        self.verification_thread.start()
+        
+        self.status_bar.config(text="Verification active — monitoring in progress")
+    
+    def stop_verification(self):
+        """Stop verification"""
+        self.is_running = False
         
         # Notify server of session end
         try:
-            requests.post(f"{self.server_url}/api/session_end", 
-                       json={'player_id': self.player_id}, 
-                       timeout=5)
-        except:
-            pass  # Optional, don't fail if this doesn't work
+            print(f"DEBUG: Sending session end for player: {self.player_id}")
+            response = requests.post(f"{self.server_url}/api/session_end", 
+                               json={'player_id': self.player_id}, 
+                               timeout=5)
+            print(f"DEBUG: Session end response: {response.status_code}")
+        except Exception as e:
+            print(f"DEBUG: Session end failed: {e}")
         
         if self.cap:
             self.cap.release()
